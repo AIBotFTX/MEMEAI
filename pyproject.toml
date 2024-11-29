@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "memeai"
+version = "0.1.0"
+description = ""
+authors = ["Denis Tereshchenko <dotereschenko@edu.hse.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+langchain = "^0.3.7"
+openai = "^1.55.0"
+requests = "^2.32.3"
+beautifulsoup4 = "^4.12.3"
+pydantic = "^2.10.1"
+langchain-openai = "^0.2.9"
+tweepy = "^4.14.0"
+langchain-community = "^0.3.7"
+fastapi = "^0.115.5"
+aiohttp = "^3.11.7"
+uvicorn = "^0.32.1"
+apscheduler = "^3.11.0"
+asyncpg = "^0.30.0"
+psycopg2-binary = "^2.9.10"
+python-dotenv = "^1.0.1"
+SQLAlchemy = ">=1.4,<2.0.36"
+pydantic-settings = "^2.6.1"
+cachetools = "^5.5.0"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+black = "^24.10.0"
+pytest-asyncio = "^0.24.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
