@@ -44,6 +44,8 @@ async def _store_or_update_tweets(session, user_id, tweets):
                 id=tweet_id,
                 content=tweet_data.text,
                 author_id=user_id,
+                is_own_tweet=True,
+                is_following_tweet=False
             )
             stored_tweets.append(new_tweet)
     return stored_tweets
@@ -94,46 +96,59 @@ async def get_and_store_my_timeline(count: int = 10):
 @router.get("/home_timeline")
 async def get_and_store_home_timeline(max_count: int = 50):
     try:
+        # Retrieve tweets from the home timeline
         tweets = await twitter.twitter_client.get_user_timeline_home(max_count)
-        logger.info(f"Retrieved {len(tweets)} tweets from home timeline")
-        logging.info(tweets)
-        stored_tweets = []
-        async with database.db_service.get_session() as session:
-            for tweet in tweets:
-                username = tweet.get("username", "unknown")
+        logger.info(f"Retrieved {len(tweets)} tweets from Twitter")
 
+        async with database.db_service.get_session() as session:
+            stored_tweets = []
+            for tweet in tweets:
+                # Extract author details
+                author = tweet.get("author_id")
+                if not author or "id" not in author:
+                    logger.warning(
+                        f"Missing author information for tweet {tweet.get('id')}"
+                    )
+                    continue
+
+                author_id = int(author["id"])  # Ensure `author_id` is an integer
+                username = author.get("username", "unknown")
+                name = author.get("name", username)
+
+                # Retrieve or create the user in the database
                 user = await database.db_service.user_repo.get_by_username(
                     session, username
                 )
-                logging.info(dir(tweet))
                 if not user:
-                    author_id = tweet.author_id
                     user = await database.db_service.user_repo.create(
                         session,
-                        id=author_id,  # Pass the integer id directly
+                        id=author_id,
                         username=username,
-                        name=tweet.get("name", username),
+                        name=name,
                         followers_count=0,
                         following_count=0,
                         is_following=True,
                     )
 
-                # Create the tweet associated with the user
+                # Create or update the tweet in the database
+                public_metrics = tweet.get("public_metrics", {})
                 stored_tweet = await database.db_service.tweet_repo.create(
                     session,
+                    id=tweet.get("id", 0),
                     content=tweet.get("text", ""),
-                    author_id=user.id,  # Use the user.id field to link the tweet
-                    like_count=tweet.get("like_count", 0),
-                    retweet_count=tweet.get("retweet_count", 0),
-                    reply_count=tweet.get("reply_count", 0),
-                    quote_count=tweet.get("quote_count", 0),
-                    source=tweet.get("source", "twitter"),
+                    author_id=user.id,
+                    like_count=public_metrics.get("like_count", 0),
+                    retweet_count=public_metrics.get("retweet_count", 0),
+                    reply_count=public_metrics.get("reply_count", 0),
+                    quote_count=public_metrics.get("quote_count", 0),
+                    source="twitter",
                     is_own_tweet=False,
                     is_mention=False,
                     is_following_tweet=True,
                 )
                 stored_tweets.append(stored_tweet)
 
+        # Return the response with stored tweets
         return {
             "status": "success",
             "twitter_tweets_retrieved": len(tweets),
@@ -155,9 +170,9 @@ async def get_and_store_home_timeline(max_count: int = 50):
         }
 
     except Exception as e:
-        logger.error(f"Failed to get and store home timeline: {str(e)}")
+        logger.error(f"Failed to get and store timeline: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to get and store home timeline: {str(e)}"
+            status_code=500, detail=f"Failed to get and store timeline: {str(e)}"
         )
 
 

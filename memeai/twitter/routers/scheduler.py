@@ -41,7 +41,6 @@ async def scheduled_create_tweet_task(message: str):
         logger.error(f"Error during scheduled Create Tweet task: {e}")
 
 
-
 @router.post("/add_my_timeline_job")
 def add_my_timeline_job(interval: int = 60, count: int = 10):
     try:
@@ -51,7 +50,10 @@ def add_my_timeline_job(interval: int = 60, count: int = 10):
             seconds=interval,
             id="my_timeline_job",
         )
-        return {"status": "success", "message": "My Timeline job scheduled successfully."}
+        return {
+            "status": "success",
+            "message": "My Timeline job scheduled successfully.",
+        }
     except Exception as e:
         logger.error(f"Failed to schedule My Timeline job: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -66,7 +68,10 @@ def add_home_timeline_job(interval: int = 60, max_count: int = 50):
             seconds=interval,
             id="home_timeline_job",
         )
-        return {"status": "success", "message": "Home Timeline job scheduled successfully."}
+        return {
+            "status": "success",
+            "message": "Home Timeline job scheduled successfully.",
+        }
     except Exception as e:
         logger.error(f"Failed to schedule Home Timeline job: {e}")
         raise HTTPException(status_code=500, detail=str(e))
