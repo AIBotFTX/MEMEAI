@@ -1,5 +1,4 @@
 from pydantic_settings import BaseSettings
-from sqlalchemy.engine.url import URL
 
 
 class Settings(BaseSettings):
@@ -20,16 +19,8 @@ class Settings(BaseSettings):
     DB_USER: str
 
     @property
-    def construct_sqlalchemy_url(self) -> str:
-        uri = URL.create(
-            drivername="postgresql+asyncpg",
-            username=self.DB_USER,
-            password=self.DB_PASSWORD,
-            host=self.DB_HOST,
-            port=self.DB_PORT,
-            database=self.DB_NAME,
-        )
-        return uri.render_as_string(hide_password=False)
+    def database_url(self) -> str:
+        return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     class Config:
         env_file = ".env"
