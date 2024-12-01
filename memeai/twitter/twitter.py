@@ -69,7 +69,7 @@ class AsyncTwitterClient:
                 self.client.get_home_timeline,
                 max_results=max_results,
                 user_fields=["username", "name"],
-                tweet_fields=["author_id", "created_at", "public_metrics", "source"],
+                tweet_fields=["author_id", "created_at"],
                 expansions=["author_id"],
                 user_auth=True,
             )
@@ -82,11 +82,10 @@ class AsyncTwitterClient:
             # Enhance tweet data with user information
             enhanced_tweets = []
             for tweet in home_timeline.data:
-                tweet.author = users.get(tweet.author_id)
+                tweet.author_id = users.get(tweet.author_id)
                 enhanced_tweets.append(tweet)
 
             return enhanced_tweets
-
         except Exception as e:
             logger.error(f"Error fetching home timeline: {str(e)}")
             raise
@@ -101,8 +100,8 @@ class AsyncTwitterClient:
 
     async def get_user_mentions(self, user_id: int | str):
         tweets = await asyncio.to_thread(
-            self.get_users_mentions,
-            ids=user_id,
+            self.client.get_users_mentions,
+            id=user_id,
             user_auth=True,
             tweet_fields=["author_id", "created_at", "public_metrics", "source"]
         )
