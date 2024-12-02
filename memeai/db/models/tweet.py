@@ -10,7 +10,7 @@ class Tweet(Base):
     __tablename__ = "tweets"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    content: Mapped[str] = mapped_column(String(500))
+    content: Mapped[str] = mapped_column(String(2500))
     author_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.id"), nullable=False
     )

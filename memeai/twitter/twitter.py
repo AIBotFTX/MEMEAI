@@ -73,7 +73,7 @@ class AsyncTwitterClient:
                 self.client.get_home_timeline,
                 max_results=max_results,
                 tweet_fields=["created_at", "public_metrics"],
-                user_fields=["author_id"],
+                expansions=["author_id"],
                 user_auth=True
             )
             logging.info(home_timeline)
