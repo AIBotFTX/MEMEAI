@@ -29,10 +29,10 @@ async def create_tweet(request: TweetRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/get_tweets")
-async def get_tweets(tweet_ids: list[int | str]):
+@router.post("/get_tweet")
+async def get_tweet(tweet_id: int):
     try:
-        tweets = await twitter_client.get_tweets(tweet_id=tweet_ids)
+        tweets = await twitter_client.get_tweets(tweet_id=tweet_id)
         return tweets
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -43,6 +43,15 @@ async def get_user_info(username: str):
     try:
         user = await twitter_client.get_user_info(username)
         return {"user_info": user}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/me/")
+async def get_me():
+    try:
+        me = await twitter_client.get_me()
+        return {"user_info": me}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -65,10 +74,11 @@ async def get_user_timeline_home(max_count: int):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/get_mentioned_tweets")
-async def get_mentioned_tweets(id: int | str):
+@router.get("/get_my_mentioned_tweets")
+async def get_my_mentioned_tweets():
     try:
-        tweets = await twitter_client.get_user_mentions(id)
+        me = twitter_client.client.get_me()
+        tweets = await twitter_client.get_user_mentions(me.data.id)
         return tweets
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

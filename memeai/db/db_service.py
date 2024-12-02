@@ -125,13 +125,24 @@ class TwitterDBService:
         async with self.get_session() as session:
             return await self.tweet_repo.get_latest(session, limit)
 
+    async def get_by_author_id(self, author_id: int):
+        async with self.get_session() as session:
+            user = await self.user_repo.get_by_author_id(session, author_id)
+            if user is None:
+                logging.warning(f"User with author_id {author_id} not found.")
+            else:
+                logging.info(f"User found: {user.username}")
+            return user
+
     async def get_db_stats(self) -> Dict[str, Any]:
         """Get database statistics using repositories."""
         try:
             async with self.get_session() as session:
                 # Use the existing repo instances instead of creating new ones
-                tweets = await self.tweet_repo.get_all(session)  # Pass session to get_all
-                users = await self.user_repo.get_all(session)   # Pass session to get_all
+                tweets = await self.tweet_repo.get_all(
+                    session
+                )  # Pass session to get_all
+                users = await self.user_repo.get_all(session)  # Pass session to get_all
 
                 return {
                     "status": "healthy",

@@ -1,5 +1,5 @@
-from typing import List
-from sqlalchemy import select
+from typing import List, Optional
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .base import BaseRepo
@@ -37,3 +37,29 @@ class TweetRepo(BaseRepo[Tweet]):
         query = query.order_by(Tweet.created_at.desc()).limit(limit)
         result = await session.execute(query)
         return list(result.scalars().all())
+
+    async def get_by_content_and_author(
+        self, session: AsyncSession, content: str, author_id: int
+    ) -> Optional[Tweet]:
+        """Get a tweet by its content and author_id."""
+        result = await session.execute(
+            select(Tweet).where(
+                and_(Tweet.content == content, Tweet.author_id == author_id)
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_twitter_id(
+        self, session: AsyncSession, twitter_id: str
+    ) -> Optional[Tweet]:
+        result = await session.execute(select(Tweet).where(Tweet.id == twitter_id))
+        return result.scalar_one_or_none()
+
+    async def get_author(
+        self, session: AsyncSession, author_id: int
+    ) -> Optional[Tweet]:
+        """Get a tweet by its content and author_id."""
+        result = await session.execute(
+            select(Tweet).where(Tweet.author_id == author_id)
+        )
+        return result.scalar_one_or_none()

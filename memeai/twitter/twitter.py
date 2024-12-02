@@ -8,12 +8,7 @@ logger = logging.getLogger(__name__)
 
 class AsyncTwitterClient:
     def __init__(
-        self,
-        api_key,
-        api_secret,
-        access_token,
-        access_token_secret,
-        bearer_token
+        self, api_key, api_secret, access_token, access_token_secret, bearer_token
     ):
         self.api_key = api_key
         self.api_secret = api_secret
@@ -30,6 +25,10 @@ class AsyncTwitterClient:
             bearer_token=self.bearer_token,
         )
 
+    async def get_me(self):
+        me = await asyncio.to_thread(self.client.get_me, user_fields=['public_metrics'])
+        return me
+
     async def tweet(self, message: str):
         """Send a tweet"""
         tweet = await asyncio.to_thread(self.client.create_tweet, text=message)
@@ -40,23 +39,28 @@ class AsyncTwitterClient:
         """Retrieve user information"""
         if isinstance(username, str):
             user = await asyncio.to_thread(
-                self.client.get_user, username=username, user_auth=True,
-                user_fields=["name,username", "description", "public_metrics"]
+                self.client.get_user,
+                username=username,
+                user_auth=True,
+                user_fields=["name,username", "description", "public_metrics"],
             )
         elif isinstance(username, int):
             user = await asyncio.to_thread(
-                self.client.get_user, id=username, user_auth=True,
-                user_fields=["name,username", "description", "public_metrics"]
+                self.client.get_user,
+                id=username,
+                user_auth=True,
+                user_fields=["name,username", "description", "public_metrics"],
             )
         return user
 
-    async def get_user_timeline(self, user_id: int, max_results: int = 5):
+    async def get_user_timeline(self, user_id: str, max_results: int = 5):
         """Retrieve user tweets"""
         tweets = await asyncio.to_thread(
             self.client.get_users_tweets,
             id=user_id,
             max_results=max_results,
-            user_auth=True,
+            tweet_fields=["created_at", "public_metrics"],
+            user_auth=True
         )
         return tweets
 
@@ -68,16 +72,20 @@ class AsyncTwitterClient:
             home_timeline = await asyncio.to_thread(
                 self.client.get_home_timeline,
                 max_results=max_results,
-                user_fields=["username", "name"],
-                tweet_fields=["author_id", "created_at"],
-                expansions=["author_id"],
-                user_auth=True,
+                tweet_fields=["created_at", "public_metrics"],
+                user_fields=["author_id"],
+                user_auth=True
             )
+            logging.info(home_timeline)
             if not home_timeline.data:
                 return []
 
             # Create a map of user data
-            users = {user.id: user for user in home_timeline.includes['users']} if 'users' in home_timeline.includes else {}
+            users = (
+                {user.id: user for user in home_timeline.includes["users"]}
+                if "users" in home_timeline.includes
+                else {}
+            )
 
             # Enhance tweet data with user information
             enhanced_tweets = []
@@ -92,8 +100,8 @@ class AsyncTwitterClient:
 
     async def get_tweets(self, tweet_id: list[int | str]):
         tweets = await asyncio.to_thread(
-            self.client.get_tweets,
-            ids=tweet_id,
+            self.client.get_tweet,
+            id=tweet_id,
             user_auth=True,
         )
         return tweets
@@ -103,6 +111,6 @@ class AsyncTwitterClient:
             self.client.get_users_mentions,
             id=user_id,
             user_auth=True,
-            tweet_fields=["author_id", "created_at", "public_metrics", "source"]
+            tweet_fields=["author_id", "created_at", "public_metrics", "source"],
         )
         return tweets
