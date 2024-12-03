@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.jobstores.base import JobLookupError
 import asyncio
 import logging
+from functools import partial
 
 from memeai.twitter.routers.integrated import (
     get_and_store_my_timeline,
@@ -13,8 +14,13 @@ from memeai.twitter.routers.integrated import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/scheduler", tags=["Scheduler"])
-scheduler = BackgroundScheduler()
-scheduler.start()
+
+# Initialize scheduler but don't start it yet
+scheduler = AsyncIOScheduler()
+
+# Use AsyncIOScheduler instead of BackgroundScheduler
+# scheduler = AsyncIOScheduler()
+# scheduler.start()
 
 
 async def scheduled_my_timeline_task(count: int = 10):
@@ -42,13 +48,15 @@ async def scheduled_create_tweet_task(message: str):
 
 
 @router.post("/add_my_timeline_job")
-def add_my_timeline_job(interval: int = 60, count: int = 10):
+async def add_my_timeline_job(interval: int = 60, count: int = 10):
     try:
         scheduler.add_job(
-            lambda: asyncio.run(scheduled_my_timeline_task(count=count)),
+            scheduled_my_timeline_task,
             "interval",
             seconds=interval,
             id="my_timeline_job",
+            kwargs={"count": count},
+            replace_existing=True,
         )
         return {
             "status": "success",
@@ -60,13 +68,15 @@ def add_my_timeline_job(interval: int = 60, count: int = 10):
 
 
 @router.post("/add_home_timeline_job")
-def add_home_timeline_job(interval: int = 60, max_count: int = 50):
+async def add_home_timeline_job(interval: int = 60, max_count: int = 50):
     try:
         scheduler.add_job(
-            lambda: asyncio.run(scheduled_home_timeline_task(max_count=max_count)),
+            scheduled_home_timeline_task,
             "interval",
             seconds=interval,
             id="home_timeline_job",
+            kwargs={"max_count": max_count},
+            replace_existing=True,
         )
         return {
             "status": "success",
@@ -78,13 +88,15 @@ def add_home_timeline_job(interval: int = 60, max_count: int = 50):
 
 
 @router.post("/add_tweet_job")
-def add_tweet_job(interval: int = 3600, message: str = "Scheduled Tweet"):
+async def add_tweet_job(interval: int = 3600, message: str = "Scheduled Tweet"):
     try:
         scheduler.add_job(
-            lambda: asyncio.run(scheduled_create_tweet_task(message=message)),
+            scheduled_create_tweet_task,
             "interval",
             seconds=interval,
             id="tweet_job",
+            kwargs={"message": message},
+            replace_existing=True,
         )
         return {"status": "success", "message": "Tweet job scheduled successfully."}
     except Exception as e:
@@ -93,7 +105,7 @@ def add_tweet_job(interval: int = 3600, message: str = "Scheduled Tweet"):
 
 
 @router.delete("/remove_job/{job_id}")
-def remove_job(job_id: str):
+async def remove_job(job_id: str):
     try:
         scheduler.remove_job(job_id)
         return {"status": "success", "message": f"Job {job_id} removed successfully."}
@@ -105,7 +117,7 @@ def remove_job(job_id: str):
 
 
 @router.get("/list_jobs")
-def list_jobs():
+async def list_jobs():
     jobs = [
         {
             "id": job.id,
@@ -115,3 +127,9 @@ def list_jobs():
         for job in scheduler.get_jobs()
     ]
     return {"status": "success", "jobs": jobs}
+
+
+# Shutdown handler
+@router.on_event("shutdown")
+async def shutdown_scheduler():
+    scheduler.shutdown()
