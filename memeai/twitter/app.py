@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from memeai.twitter.routers import database, twitter, integrated, scheduler
+from memeai.twitter.routers.letta_agent import router as letta_agent
 import asyncio
 from contextlib import asynccontextmanager
 
@@ -26,3 +27,4 @@ app.include_router(database.router)
 app.include_router(twitter.router)
 app.include_router(integrated.router)
 app.include_router(scheduler.router)
+app.include_router(letta_agent)

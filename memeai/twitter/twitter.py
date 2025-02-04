@@ -41,8 +41,8 @@ class AsyncTwitterClient:
             user = await asyncio.to_thread(
                 self.client.get_user,
                 username=username,
+                user_fields=["id"],
                 user_auth=True,
-                user_fields=["name,username", "description", "public_metrics"],
             )
         elif isinstance(username, int):
             user = await asyncio.to_thread(
@@ -102,6 +102,14 @@ class AsyncTwitterClient:
         tweets = await asyncio.to_thread(
             self.client.get_tweet,
             id=tweet_id,
+            user_auth=True,
+        )
+        return tweets
+    
+    async def get_users_tweets(self, user_id: int):
+        tweets = await asyncio.to_thread(
+            self.client.get_users_tweets,
+            id=user_id,
             user_auth=True,
         )
         return tweets

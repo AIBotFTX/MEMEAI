@@ -18,16 +18,15 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_EXTRA_INDEX_URL=https://pypi.doubanio.com/simple \
     PYTHONPATH=/app
 
-# Install system dependencies and Poetry
+# Install system dependencies
 RUN apt-get update && apt-get install --no-install-recommends -y \
-    python3-pip \
     build-essential \
     curl \
     postgresql-client \
-    && pip install "poetry==$POETRY_VERSION" \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /var/cache/apt/*
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry using the official installer
+RUN curl -sSL https://install.python-poetry.org | python3 - --version ${POETRY_VERSION}
 
 # Copy only dependency files first
 COPY pyproject.toml poetry.lock ./
@@ -53,4 +52,6 @@ USER twitter_user
 EXPOSE 8000
 
 # Command to run the application with hot reload
+RUN python memeai/agents/init_agent.py
+
 CMD ["poetry", "run", "uvicorn", "memeai.twitter.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

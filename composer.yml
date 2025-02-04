@@ -1,0 +1,107 @@
+services:
+  twitter:
+    container_name: memeai_twitter
+    build:
+      context: ../memeai
+      dockerfile: memeai/twitter/Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../logs:/app/logs
+      - ../memeai/memeai/twitter:/app/memeai/twitter  # Mount twitter directory for live updates
+      - ../memeai/alembic.ini:/app/alembic.ini:ro  # Mount alembic.ini as read-only
+      - ../memeai/memeai/db/migrations:/app/memeai/db/migrations  # Mount migrations directory
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Twitter API Credentials
+      API_SECRET: ${API_SECRET}
+      API_KEY_SECRET: ${API_KEY_SECRET}
+      BEARER_TOKEN: ${BEARER_TOKEN}
+      ACCESS_TOKEN: ${ACCESS_TOKEN}
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET}
+      CLIENT_ID: ${CLIENT_ID}
+      CLIENT_SECRET: ${CLIENT_SECRET}
+      
+      # Database Configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      # Redis Configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: ${REDIS_DB}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      
+      # Development settings
+      PYTHONPATH: /app
+    networks:
+      - memeai_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: memeai_postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - memeai_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: memeai_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: >
+      --requirepass ${REDIS_PASSWORD}
+      --appendonly yes
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    networks:
+      - memeai_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+networks:
+  memeai_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

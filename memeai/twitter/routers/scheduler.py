@@ -1,26 +1,30 @@
 from fastapi import APIRouter, HTTPException
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.date import DateTrigger
 from apscheduler.jobstores.base import JobLookupError
+from memeai.twitter.models import TweetRequest
+from memeai.prompts.prompts import Prompt, PromptRequest
+from datetime import datetime, timedelta
+import random
 import asyncio
 import logging
 from functools import partial
+from memeai.twitter.routers import twitter
 
 from memeai.twitter.routers.integrated import (
     get_and_store_my_timeline,
     get_and_store_home_timeline,
     create_and_store_tweet,
 )
+from pytz import utc
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/scheduler", tags=["Scheduler"])
 
 # Initialize scheduler but don't start it yet
-scheduler = AsyncIOScheduler()
-
-# Use AsyncIOScheduler instead of BackgroundScheduler
-# scheduler = AsyncIOScheduler()
-# scheduler.start()
+scheduler = AsyncIOScheduler(timezone=utc)
 
 
 async def scheduled_my_timeline_task(count: int = 10):
@@ -42,7 +46,8 @@ async def scheduled_home_timeline_task(max_count: int = 50):
 async def scheduled_create_tweet_task(message: str):
     try:
         logger.info(f"Executing scheduled task: Create Tweet with message '{message}'")
-        await create_and_store_tweet({"message": message})
+        request = TweetRequest(message=message)
+        await create_and_store_tweet(request)
     except Exception as e:
         logger.error(f"Error during scheduled Create Tweet task: {e}")
 
@@ -128,8 +133,46 @@ async def list_jobs():
     ]
     return {"status": "success", "jobs": jobs}
 
+@router.post("/schedule_tweets/")
+async def schedule_tweets(prompt_request: PromptRequest):
+    prompts = prompt_request.prompts
+    if not prompts:
+        raise HTTPException(status=400, detail="No prompts provided")
 
-# Shutdown handler
+    total_prompts = len(prompts)
+    if total_prompts == 0:
+        raise HTTPException(status=400, detail="No valid prompts provided")
+
+    # Interval between tweets is fixed at 1.5 hours
+    interval_per_prompt = 1.5 * 3600  # 1.5 hours in seconds
+    current_time = datetime.now()
+
+    for i, item in enumerate(prompts):
+        # Schedule each tweet at equal intervals
+        execution_time = current_time + timedelta(seconds=i * interval_per_prompt)
+
+        # Generate unique job ID
+        job_id = f"tweet-{item.prompt[:10]}-{execution_time.timestamp()}"
+
+        # Add the job to the scheduler
+        scheduler.add_job(
+            twitter.twitter_client.tweet,
+            trigger=DateTrigger(run_date=execution_time),
+            args=[item.prompt],
+            id=job_id,
+            replace_existing=True,
+        )
+
+    return {"message": f"{total_prompts} tweets successfully scheduled at equal intervals."}
+
+@router.on_event("startup")
+async def start_scheduler():
+    if not scheduler.running:
+        scheduler.start()
+        logger.info("Scheduler started successfully.")
+
+
 @router.on_event("shutdown")
-async def shutdown_scheduler():
+async def stop_scheduler():
     scheduler.shutdown()
+    logger.info("Scheduler stopped.")

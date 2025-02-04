@@ -9,6 +9,14 @@ router = APIRouter(
     tags=["twitter"],
     responses={404: {"description": "Not found"}},
 )
+
+twitter_client = AsyncTwitterClient(
+    api_key=settings.API_SECRET,
+    api_secret=settings.API_KEY_SECRET,
+    access_token=settings.ACCESS_TOKEN,
+    access_token_secret=settings.ACCESS_TOKEN_SECRET,
+    bearer_token=settings.BEARER_TOKEN,
+)
 twitter_client = AsyncTwitterClient(
     api_key=settings.API_SECRET,
     api_secret=settings.API_KEY_SECRET,
@@ -33,6 +41,15 @@ async def create_tweet(request: TweetRequest):
 async def get_tweet(tweet_id: int):
     try:
         tweets = await twitter_client.get_tweets(tweet_id=tweet_id)
+        return tweets
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/get_user_tweets")
+async def get_user_tweets(user_id: int):
+    try:
+        tweets = await twitter_client.get_users_tweets(user_id=user_id)
         return tweets
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

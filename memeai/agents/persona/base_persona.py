@@ -25,10 +25,6 @@ class BasePersona(ABC):
         self.history = history if history else []
 
     @abstractmethod
-    def name(self) -> str:
-        return self.name
-
-    @abstractmethod
     async def set_personality(self, **kwargs) -> str:
         """
        This method sets personality for LLM
@@ -40,7 +36,8 @@ class BasePersona(ABC):
     @abstractmethod
     async def generate_prompt(self) -> str:
         """
-        Generate a personalized prompt or message based on the agent's persona and history.
+        Generate a personalized prompt or message
+        based on the agent's persona and history.
 
         :return: Generated prompt.
         """

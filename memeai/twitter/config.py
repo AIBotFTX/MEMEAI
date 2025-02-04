@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     DB_PORT: int
     DB_NAME: str
     DB_USER: str
+      
+    ANTHROPIC_API_KEY: str
 
     @property
     def construct_sqlalchemy_url(self) -> str:

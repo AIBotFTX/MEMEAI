@@ -2,6 +2,9 @@ from fastapi import APIRouter, HTTPException
 import logging
 from memeai.twitter.routers import database, twitter
 from memeai.twitter.models import TweetRequest
+from letta import create_client
+from memeai.twitter.routers.letta_agent import generate_tweet_content
+# from memeai.twitter.client import client
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +48,7 @@ async def _store_or_update_tweets(session, user_id, tweets):
                 content=tweet_data.text,
                 author_id=user_id,
                 is_own_tweet=True,
-                is_following_tweet=False
+                is_following_tweet=False,
             )
             stored_tweets.append(new_tweet)
     return stored_tweets
@@ -179,38 +182,35 @@ async def get_and_store_home_timeline(max_count: int = 50):
 @router.post("/tweet")
 async def create_and_store_tweet(request: TweetRequest):
     try:
-        tweet_response = await twitter.twitter_client.tweet(request.message)
-        logger.info(f"Created tweet on Twitter: {tweet_response}")
+        # Create tweet on Twitter
+        answer = await generate_tweet_content(message=request.message)
+        tweet_response = await twitter.twitter_client.tweet(answer)
+        logger.info(f"Tweet response type: {type(tweet_response)}")
+        logger.info(f"Tweet response content: {tweet_response}")
 
+        # Get user info
         me = await twitter.twitter_client.get_me()
         logger.info(f"Retrieved user info for tweet author {me.data.id}")
 
         async with database.db_service.get_session() as session:
+            # Get or create user
             user = await database.db_service.user_repo.get_by_username(
                 session, me.data.username
             )
 
-            if not user:
-                user = await database.db_service.user_repo.create(
-                    session,
-                    id=me.data.id,
-                    author_id=me.author_id,
-                    username=me.data.username,
-                    name=me.data.name,
-                    followers_count=me.public_metrics.get("followers_count"),
-                    following_count=me.public_metrics.get("following_count"),
-                    is_following=False,
-                )
+            tweet_id = int(tweet_response.data["id"])
 
+            # Store the tweet
             stored_tweet = await database.db_service.tweet_repo.create(
                 session,
-                content=request.message,
-                author_id=user.id,
-                like_count=tweet_response.get("like_count", 0),
-                retweet_count=tweet_response.get("retweet_count", 0),
-                reply_count=tweet_response.get("reply_count", 0),
-                quote_count=tweet_response.get("quote_count", 0),
-                source="twitter_api",
+                id=tweet_id,
+                content=answer,
+                author_id=int(me.data.id),
+                like_count=0,
+                retweet_count=0,
+                reply_count=0,
+                quote_count=0,
+                source="my tweet",
                 is_own_tweet=True,
                 is_mention=False,
                 is_following_tweet=False,
@@ -218,10 +218,10 @@ async def create_and_store_tweet(request: TweetRequest):
 
             return {
                 "status": "success",
-                "twitter_response": tweet_response,
+                "twitter_response": {"id": tweet_id, "text": answer},
                 "stored_tweet": {
-                    "id": stored_tweet.id,
-                    "content": stored_tweet.content,
+                    "id": tweet_id,
+                    "content": answer,
                     "author_id": stored_tweet.author_id,
                     "created_at": stored_tweet.created_at.isoformat(),
                     "is_own_tweet": stored_tweet.is_own_tweet,
@@ -235,6 +235,8 @@ async def create_and_store_tweet(request: TweetRequest):
 
     except Exception as e:
         logger.error(f"Failed to create and store tweet: {str(e)}")
+        logger.error(f"Tweet response type: {type(tweet_response)}")
+        logger.error(f"Tweet response content: {tweet_response}")
         raise HTTPException(
             status_code=500, detail=f"Failed to create and store tweet: {str(e)}"
         )
