@@ -13,9 +13,6 @@ os.environ["ANTHROPIC_API_KEY"] = settings.ANTHROPIC_API_KEY
 router = APIRouter(prefix="/letta_agent", tags=["letta_agent"])
 logger = logging.getLogger(__name__)
 
-os.environ["AGENT_ID"] = init_agent()
-AGENT_ID = os.environ["AGENT_ID"]
-
 
 async def generate_tweet_content(message: str) -> str:
     """
@@ -33,10 +30,12 @@ async def generate_tweet_content(message: str) -> str:
     environment = "Twitter"
     try:
         logger.info(f"Generating tweet for message: {message}")
-   
+
         # Send the message to the Letta agent
         response = client.send_message(
-            agent_id=AGENT_ID, message=f"[system] Explore {environment} environment, call functions to explore the environment and make actions.", role="system"
+            agent_id=os.environ["AGENT_ID"],
+            message=f"[system] Explore {environment} environment, call functions to explore the environment and make actions.",
+            role="system",
         )
 
         # Parse the response
@@ -47,13 +46,12 @@ async def generate_tweet_content(message: str) -> str:
         generated_message = parsed_response.get("message")
         if not generated_message:
             raise ValueError("Generated message is missing from the response.")
-     
+
         return generated_message
 
     except Exception as e:
         logger.exception(f"Error in generate_tweet_content: {str(e)}")
         raise
-
 
 # Endpoint using the utility function
 @router.post("/generate")
@@ -70,3 +68,21 @@ async def generate_tweet(message: str):
             status_code=500,
             detail="An error occurred while generating the tweet. Please try again later.",
         )
+
+
+@router.post("/init")
+async def initialize_agent():
+    """
+    Initialize the Letta agent and store its ID in an environment variable.
+
+    Returns:
+        dict: The initialized agent ID.
+    """
+    try:
+        agent_id = init_agent()
+        os.environ["AGENT_ID"] = agent_id
+        logger.info(f"Agent initialized successfully: {agent_id}")
+        return {"agent_id": agent_id}
+    except Exception as e:
+        logger.error(f"Failed to initialize agent: {str(e)}")
+        raise HTTPException(status_code=500, detail="Agent initialization failed.")
